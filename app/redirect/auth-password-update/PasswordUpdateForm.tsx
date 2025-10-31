@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, type FC, Suspense } from 'react';
+import React, { useState, type FC, Suspense, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { resetPassword } from './action';
 import { Lock, Loader2 } from 'lucide-react';
 import { useFormStatus } from 'react-dom';
@@ -9,12 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { createClient } from '@/lib/client/client';
 
 interface PasswordUpdateFormProps {
   email?: string;
 }
 
 const PasswordUpdateForm: FC<PasswordUpdateFormProps> = ({ email }) => {
+  const router = useRouter();
+  const [emailState, setEmail] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [passwordRequirements, setPasswordRequirements] = useState({
@@ -23,6 +27,30 @@ const PasswordUpdateForm: FC<PasswordUpdateFormProps> = ({ email }) => {
     lowercase: false,
     number: false
   });
+
+  useEffect(() => {
+    const supabase = createClient();
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const access_token = hashParams.get('access_token');
+    const refresh_token = hashParams.get('refresh_token');
+
+    if (access_token && refresh_token) {
+      supabase.auth
+        .setSession({
+          access_token,
+          refresh_token
+        })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error setting session:', error);
+            // Optionally, redirect to an error page
+            // router.push('/error');
+          } else if (data.user) {
+            setEmail(data.user.email || '');
+          }
+        });
+    }
+  }, [router]);
 
   const validatePassword = (password: string) => {
     const requirements = {
@@ -61,7 +89,7 @@ const PasswordUpdateForm: FC<PasswordUpdateFormProps> = ({ email }) => {
                 id="email"
                 name="email"
                 type="email"
-                value={email}
+                value={emailState}
                 disabled
                 className="pl-4 py-5"
               />

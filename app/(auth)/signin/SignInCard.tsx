@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import Link from 'next/link';
 export default function SignInCard() {
   const router = useRouter();
   const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState(false);
   const [emailErrorMessage, setEmailErrorMessage] = useState('');
   const [passwordError, setPasswordError] = useState(false);
@@ -25,6 +26,13 @@ export default function SignInCard() {
     type: '',
     message: ''
   });
+
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('rememberedEmail');
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+    }
+  }, []);
 
   const handleSubmit = async (formData: FormData) => {
     const email = formData.get('email') as string;
@@ -90,7 +98,8 @@ export default function SignInCard() {
             required
             aria-label="email"
             className={emailError ? 'border-destructive' : ''}
-            defaultValue={localStorage.getItem('rememberedEmail') || ''}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           {emailError && (
             <p className="text-sm text-destructive">{emailErrorMessage}</p>
