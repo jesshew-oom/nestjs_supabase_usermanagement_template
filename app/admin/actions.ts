@@ -38,7 +38,7 @@ export async function inviteUser(
   }
 
   const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-    redirectTo: 'http://localhost:3001/redirect/auth-password-update'
+    redirectTo: 'http://localhost:3001/redirect/auth-invite-user-set-password'
   });
 
   if (error) {

@@ -15,7 +15,7 @@ import Link from 'next/link';
 
 export default function SignInCard() {
   const router = useRouter();
-  const [rememberMe, setRememberMe] = useState(false);
+  // const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState(false);
   const [emailErrorMessage, setEmailErrorMessage] = useState('');
@@ -27,12 +27,12 @@ export default function SignInCard() {
     message: ''
   });
 
-  useEffect(() => {
-    const rememberedEmail = localStorage.getItem('rememberedEmail');
-    if (rememberedEmail) {
-      setEmail(rememberedEmail);
-    }
-  }, []);
+  // useEffect(() => {
+  //   const rememberedEmail = localStorage.getItem('rememberedEmail');
+  //   if (rememberedEmail) {
+  //     setEmail(rememberedEmail);
+  //   }
+  // }, []);
 
   const handleSubmit = async (formData: FormData) => {
     const email = formData.get('email') as string;
@@ -47,11 +47,11 @@ export default function SignInCard() {
       });
 
       if (result.success) {
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', email);
-        } else {
-          localStorage.removeItem('rememberedEmail');
-        }
+        // if (rememberMe) {
+        //   localStorage.setItem('rememberedEmail', email);
+        // } else {
+        //   localStorage.removeItem('rememberedEmail');
+        // }
         router.back();
       }
     }
@@ -125,7 +125,7 @@ export default function SignInCard() {
           )}
         </div>
 
-        <div className="flex items-center space-x-2">
+        {/* <div className="flex items-center space-x-2">
           <Checkbox
             id="remember-me"
             checked={rememberMe}
@@ -137,7 +137,7 @@ export default function SignInCard() {
           >
             Remember me
           </Label>
-        </div>
+        </div> */}
 
         <SubmitButton />
 
