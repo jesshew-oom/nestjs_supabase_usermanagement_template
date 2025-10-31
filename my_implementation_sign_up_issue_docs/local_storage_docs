@@ -1,0 +1,69 @@
+Of course. I'll start by examining the signup and invite flows to understand how they work and where local storage is used. Then, I'll investigate how passwords for invited users are created.
+
+First, I'll start by looking at the end-to-end sign-up flow.
+
+[1 tool called]
+
+Okay, that first search didn't work. I'll try a more direct approach by reading the main sign-up file to understand how a new user signs up.
+
+[3 tools called]
+
+Okay, I've got a good handle on the standard sign-up flow and how local storage is used. Now, let's dig into the invite process. I'll start by examining the invite API endpoint.
+
+[4 tools called]
+
+Here is a breakdown of the sign-up and invite flows:
+
+### Standard Sign-up Flow
+
+The standard sign-up process is a multi-step flow designed to gather user and organization details before the user's email is confirmed.
+
+1.  **Data Collection**: A new user navigates to `/auth/signup` and fills out a multi-step form which includes:
+    *   **Account Information**: Name, email, password, and contact details.
+    *   **Business Profile**: Company name, website, industry, and phone number.
+    *   **Compliance**: Agreement to Terms of Service and Privacy Policy.
+
+2.  **Local Storage Caching**: Once the form is complete, the user and organization data is bundled into a JSON object and saved in the browser's `localStorage` under the key `signup.bootstrap.v1`. This is done to persist this information across the email verification step, as the data is not sent to the server yet.
+
+3.  **Initial Authentication**: The application then calls Supabase's `signUp` method with the user's email and password. Supabase sends a confirmation email to the user with a link that directs them to `/auth/finish`.
+
+4.  **Email Confirmation & Final Setup**:
+    *   When the user clicks the confirmation link, they are redirected to the `/auth/finish` page.
+    *   This page retrieves the user's session from Supabase.
+    *   It then reads the cached data from `localStorage` (`signup.bootstrap.v1`).
+    *   A `POST` request is made to the `/api/bootstrap-after-login` endpoint, sending the cached data.
+
+5.  **Backend Provisioning**: The `/api/bootstrap-after-login` endpoint handles the creation of the user's organization and their profile in the database.
+    *   It verifies the user's token and confirms their email has been validated.
+    *   It creates a new `organization` record.
+    *   It then creates a new `app_user` record, linking the authenticated user to the newly created organization and assigning them the `super_admin` role.
+    *   Finally, the `signup.bootstrap.v1` item is removed from `localStorage`.
+
+6.  **Redirection**: The user is then redirected to the `/chat` page, and the sign-up process is complete.
+
+### Invite Flow
+
+The invite flow is for adding new users to an existing organization.
+
+1.  **Invite Generation**: An `admin` or `super_admin` can invite a new user from within the application. This action sends a request to the `/api/users/invite/route.ts` endpoint.
+
+2.  **User Creation with Temporary Password**:
+    *   The backend generates a secure, **temporary 36-character random password** for the new user.
+    *   It then calls Supabase's `signUp` method with the invited user's email and this temporary password. This creates an `auth.users` record for the new user.
+    *   An `app_user` record is also created immediately, linking the new user to the organization.
+
+3.  **User Accepts Invitation**: The invited user receives an email with a link to `/auth/invite-welcome`.
+
+4.  **Password Reset on First Login**:
+    *   When the user visits the welcome link, the page verifies their session.
+    *   It then generates a **new, secure 12-character random password** on the client-side.
+    *   This new password immediately updates the user's account via `supabase.auth.updateUser`, replacing the temporary one.
+    *   The new password is displayed on the screen for the user to copy. The user does not get to choose their own password at this stage.
+
+5.  **Login**: The user can then proceed to the application and log in with their email and the newly provided password.
+
+### Use of Local Storage
+
+`localStorage` plays a key role in the standard sign-up flow by acting as a temporary holding place for user and organization data during the email verification process. This ensures that the data is not lost when the user navigates away to their email client and then returns to the application.
+
+In the invite flow, `localStorage` is not used. The process is more direct since the organization already exists and the user is being added to it.

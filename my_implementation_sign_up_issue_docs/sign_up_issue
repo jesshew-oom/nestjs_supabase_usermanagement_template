@@ -1,0 +1,74 @@
+### Problem Overview
+
+Our Next.js + Supabase Auth sign-up flow is fundamentally broken due to cross-device verification issues and unreliable database trigger behavior. Users cannot complete sign-up if they verify their email on a different device than the one they registered on. This is a critical blocker for production.
+
+### Current Tech Stack
+
+Next.js frontend + Supabase Auth (backend authentication)
+
+### Problem History & What We've Tried
+
+**Attempt 1: Local Storage (Original Implementation)**
+
+Sign-up flow relied on browser local storage to persist session data. This breaks when users sign up on one device (e.g., mobile) and verify via email on another device (e.g., laptop). The verification link cannot access the original session stored in local storage, causing the entire sign-up process to fail.
+
+**Attempt 2: PKCE Flow**
+
+We attempted to migrate to PKCE (Proof Key for Code Exchange) to solve the cross-device issue. However, PKCE proved too complex to implement correctly with the given timeframe, and critically, it does NOT support cross-device verification either. We abandoned this approach.
+
+**Attempt 3: Database Triggers (Current Broken Implementation)**
+
+Current flow:
+
+1. User submits sign-up form
+2. Supabase Auth creates a new row in the `auth.users` table and stores credentials in `user_metadata`
+3. Confirmation email is sent to user
+4. User clicks email verification link
+5. Database trigger fires on email confirmation, retrieves `user_metadata`, creates new organization record, creates new app user record linked to org
+6. Sign-up should be complete
+
+**Why Attempt 3 is Failing:**
+
+The database trigger approach is fundamentally broken and non-deterministic. Here's what's happening:
+
+**Symptom:** User confirmation succeeds intermittently — sometimes the user gets confirmed, sometimes they don't. There is no consistent pattern.
+
+**Root Issue:** The database trigger that's supposed to fire on email confirmation is unreliable. It fails silently and unpredictably, leaving users in a broken partial state where:
+
+- The email verification link has been clicked
+- But the `email_confirmed_at` field in `auth.users` is NOT updated
+- Therefore the trigger condition is never met
+- So the organization and app user records are never created
+- The user is stuck — they can't sign in, can't re-verify(feature not done yet), and we have no way to recover their account
+
+**Critical Detail:** This failure happens *even on the same browser* where the user originally signed up. This means the cross-device issue we were trying to solve is now irrelevant — the trigger itself is the problem. When it works, cross-device validation does work. But it doesn't work consistently enough to be production-ready.
+
+**Debugging Nightmare:** We cannot trace the error. There are no logs, no exceptions thrown, no error states we can catch. The trigger just silently fails to execute, or executes but doesn't commit, or some other undefined behavior we can't see into.
+
+**What I Need:** I need to replace this entire trigger-based approach with a deterministic, traceable, and reliable sign-up flow. I need reference implementations or architectural patterns (preferably using Supabase Auth + Next.js) that handle email confirmation and post-confirmation user provisioning in a way that:
+
+1. Always works, regardless of device
+2. Logs errors clearly when something fails
+3. Allows us to retry or recover from partial states
+4. Does not rely on silent database triggers that we can't debug
+
+### Additional Issues with Current Code
+
+The existing sign-up codebase contains confusing or contradictory logic:
+
+- Some parts reference an "email redirect" parameter that supposedly redirects users post-verification, but this is not actually happening in practice, because the actual email template does not reference the parameter
+- Email template configuration is unclear and may not align with actual behavior
+- Code comments and implementation don't match
+
+### What I Need to Fix This
+
+I plan to find production-grade reference implementations or templates that use Supabase Auth + Next.js and support cross-device email verification reliably. I will then audit the end-to-end logic in those templates and port the working patterns into our codebase.
+
+### Expected Outcome
+
+A stable, production-ready sign-up flow where:
+
+1. Users can sign up on any device
+2. Users can verify their email on any device (different from sign-up device)
+3. Verification triggers organization and user creation reliably, every time
+4. Errors are traceable and debuggable
